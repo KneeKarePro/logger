@@ -37,7 +37,9 @@ def main():
         print(f"Data saved to {filename}")
         df = pd.read_csv(filename)
         # Turn unixtime to datatime
-        df["Time"] = pd.to_datetime(df["Time"], unit="s")
+        df["Time"] = pd.to_datetime(df["Time"], unit="s") + pd.to_timedelta(
+            df["Millis"], unit="ms"
+        )
         print(df)
 
 
