@@ -60,7 +60,24 @@ def send_data(df: pd.DataFrame, user_id: int = 1):
         }
         response = requests.post(url, json=data)
         print(response)
+
+def send_data_batched(df: pd.DataFrame, user_id: int = 1):
+    url = f"http://localhost:8000/users/{user_id}/knee-data/batch"
+    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["Rotation", "Angle", "Time"])
     
+    # Prepare batch data
+    batch_data = [
+        {
+            "timestamp": row["Time"].timestamp(),
+            "angle": row["Angle"],
+            "rotation": row["Rotation"],
+        }
+        for _, row in df.iterrows()
+    ]
+    
+    # Send in single request
+    response = requests.post(url, json=batch_data)
+    print(response.status_code) 
 
 
 def main():
@@ -70,7 +87,7 @@ def main():
         # filename = download()
     df = read_csv()
     df = process_data(df)
-    send_data(df)
+    send_data_batched(df)
 
 
 if __name__ == "__main__":
