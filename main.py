@@ -78,6 +78,26 @@ def send_data_batched(df: pd.DataFrame, user_id: int = 1):
     # Send in single request
     response = requests.post(url, json=batch_data)
     print(response.status_code) 
+    
+def create_user(name: str = "testuser", password: str = "password", email: str = "testuser@yourmom.com"):
+    """ Creates a new user in the database
+
+    Args:
+        name (str, optional): Name of user. Defaults to "testuser".
+        password (str, optional): This is an easy one. Defaults to "password".
+        email (str, optional): Not filling this out. Defaults to "testuser@yourmom.com".
+    """
+    url = "http://localhost:8000/users"
+    data = {
+        "name": name,
+        "password": password,
+        "email": email,
+    }
+    response = requests.post(url, json=data)
+    # return the user.id
+    print(response.json())
+    return response.json()["id"]
+    
 
 
 def main():
@@ -87,7 +107,7 @@ def main():
         # filename = download()
     df = read_csv()
     df = process_data(df)
-    send_data_batched(df)
+    send_data_batched(df, 2)
 
 
 if __name__ == "__main__":
