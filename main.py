@@ -2,6 +2,8 @@ import requests
 import pandas as pd
 import subprocess
 import time
+import numpy as np
+from datetime import datetime
 
 # ESP32 server details
 ESP32_SSID = "KneeRehab"
@@ -24,23 +26,51 @@ def connect_to_wifi(ssid, password):
     return True
 
 
-def main():
-    if connect_to_wifi(ESP32_SSID, ESP32_PASSWORD):
-        # Wait for a few seconds to ensure connection is established
-        time.sleep(5)
-        response = requests.get(DATA_ENDPOINT)
-        filename = "knee_data.csv"
+def download(url: str = DATA_ENDPOINT, filename: str = "knee_data.csv"):
+    response = requests.get(url)
+    with open(filename, "wb") as f:
+        f.write(response.content)
+    print(f"Data saved to {filename}")
+    return filename
+
+def read_csv(filename: str = "knee_data.csv"):
+    df = pd.read_csv(filename)
+    # Turn unixtime to datatime
+    df["Time"] = pd.to_datetime(df["Time"], unit="s") + pd.to_timedelta(
+        df["Millis"], unit="ms"
+    )
+    return df
+
+def process_data(df: pd.DataFrame):
+    # Process data here
+    # Rotation is the difference between the current angle and the previous angle over the time difference
+    df["Rotation"] = df["Angle"].diff() / df["Time"].diff().dt.total_seconds()
+    return df
+
+def send_data(df: pd.DataFrame, user_id: int = 1):
+    url = f"http://localhost:8000/users/{user_id}/knee-data"
+    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["Rotation", "Angle", "Time"])
+    df.dropna(subset=["Rotation", "Angle", "Time"], inplace=True)
+    # NEED to send: user_id, timestamp, angle, rotation
+    for i, row in df.iterrows():
+        data = {
+            "timestamp": row["Time"].timestamp(),
+            "angle": row["Angle"],
+            "rotation": row["Rotation"],
+        }
+        response = requests.post(url, json=data)
         print(response)
-        # response.content looks like bytes = b'Time,Angle\r\n<unixtime int>,<angle int>\n,...
-        with open(filename, "wb") as f:
-            f.write(response.content)
-        print(f"Data saved to {filename}")
-        df = pd.read_csv(filename)
-        # Turn unixtime to datatime
-        df["Time"] = pd.to_datetime(df["Time"], unit="s") + pd.to_timedelta(
-            df["Millis"], unit="ms"
-        )
-        print(df)
+    
+
+
+def main():
+    # if connect_to_wifi(ESP32_SSID, ESP32_PASSWORD):
+        # Wait for a few seconds to ensure connection is established
+        # time.sleep(5)
+        # filename = download()
+    df = read_csv()
+    df = process_data(df)
+    send_data(df)
 
 
 if __name__ == "__main__":
